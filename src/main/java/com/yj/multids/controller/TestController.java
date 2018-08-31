@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.yj.multids.Service.TestService;
+import com.yj.multids.entity.Info;
 import com.yj.multids.entity.User;
 
 
@@ -29,5 +30,12 @@ public class TestController {
 	public List<User> getList(){
 		return testService.getList();
 	}
+	
+	@RequestMapping("/info")
+	public List<Info> getInfoList(){
+		return testService.getInfoList();
+	}
+	
+	
 	
 }

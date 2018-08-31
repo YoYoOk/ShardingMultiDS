@@ -1,6 +1,8 @@
 package com.yj.multids.config;
 
 import java.sql.SQLException;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
@@ -29,6 +31,7 @@ import io.shardingjdbc.core.api.config.ShardingRuleConfiguration;
 import io.shardingjdbc.core.api.config.TableRuleConfiguration;
 import io.shardingjdbc.core.api.config.strategy.StandardShardingStrategyConfiguration;
 import io.shardingjdbc.core.jdbc.core.datasource.ShardingDataSource;
+import io.shardingjdbc.core.rule.MasterSlaveRule;
 
 
 @Configuration
@@ -40,6 +43,19 @@ public class DataSourceConfig {
 	
 	@Autowired
     private Environment env;//获取自定义配置
+	
+	@Value("${spring.datasource.druid.url}")
+	private String url;
+
+	@Value("${spring.datasource.druid.username}")
+	private String username;
+
+	@Value("${spring.datasource.druid.driver-class-name}")
+	private String driverClassName;
+
+	@Value("${spring.datasource.druid.password}")
+	private String password;
+	
 	//通用数据库配置
 	@Value("${spring.datasource.druid.initial-size}")
 	private String initialSize;
@@ -77,34 +93,7 @@ public class DataSourceConfig {
 	@Value("${spring.datasource.druid.remove-abandoned-timeout-millis}")
 	private String removeAbandonedTimeOut;
 	
-	//创建分库的两个数据源
-//	@Bean(name="shardingDS1")
-	public DataSource buildShardingDS1() throws Exception{
-		RelaxedPropertyResolver propertyResolver = new RelaxedPropertyResolver(env, "sharding.datasource.ds1.");
-		Properties properties = setCustomProperties();
-		properties.put(DruidDataSourceFactory.PROP_URL, propertyResolver.getProperty("url"));//数据库url
-		properties.put(DruidDataSourceFactory.PROP_USERNAME, propertyResolver.getProperty("username"));//用户名
-		// properties.put(DruidDataSourceFactory.PROP_PASSWORD,
-		// ConfigTools.decrypt(publicKey,mysqlUserPwd));
-		properties.put(DruidDataSourceFactory.PROP_PASSWORD, propertyResolver.getProperty("password"));//密码
-		properties.put(DruidDataSourceFactory.PROP_DRIVERCLASSNAME, propertyResolver.getProperty("driver-class-name"));//Driver  数据库驱动
-
-		return DruidDataSourceFactory.createDataSource(properties);
-	}
 	
-//	@Bean(name="shardingDS2")
-	public DataSource buildShardingDS2() throws Exception{
-		RelaxedPropertyResolver propertyResolver = new RelaxedPropertyResolver(env, "sharding.datasource.ds2.");
-		Properties properties = setCustomProperties();
-		properties.put(DruidDataSourceFactory.PROP_URL, propertyResolver.getProperty("url"));//数据库url
-		properties.put(DruidDataSourceFactory.PROP_USERNAME, propertyResolver.getProperty("username"));//用户名
-		// properties.put(DruidDataSourceFactory.PROP_PASSWORD,
-		// ConfigTools.decrypt(publicKey,mysqlUserPwd));
-		properties.put(DruidDataSourceFactory.PROP_PASSWORD, propertyResolver.getProperty("password"));//密码
-		properties.put(DruidDataSourceFactory.PROP_DRIVERCLASSNAME, propertyResolver.getProperty("driver-class-name"));//Driver  数据库驱动
-
-		return DruidDataSourceFactory.createDataSource(properties);
-	}
 	@Primary
 	@Bean(name = "shardingDataSource", destroyMethod = "close")
 	public DataSource buildDataSource() throws Exception{
@@ -114,7 +103,9 @@ public class DataSourceConfig {
 		Map<String, DataSource> dsMap =  new HashMap<>();
 		dsMap.put("sharding_0", buildShardingDS1());//坑！！！key必须要和数据库名一致
 		dsMap.put("sharding_1", buildShardingDS2());
-		
+		dsMap.put("master_slave", buildMasterDataSource());
+//		dsMap.put("slave_11", buildShardingslaveDS11());
+//		dsMap.put("slave_21", buildShardingslaveDS21());
 		
 		//配置User表规则
 		TableRuleConfiguration tableRuleConfiguration = new TableRuleConfiguration();
@@ -140,7 +131,20 @@ public class DataSourceConfig {
 		// 配置分片规则
 		ShardingRuleConfiguration shardingRuleConfiguration = new ShardingRuleConfiguration();
 		shardingRuleConfiguration.getTableRuleConfigs().add(tableRuleConfiguration);
-//		shardingRuleConfiguration.setDefaultDataSourceName("ds1");//如果指定多数据源，必须要指定默认数据源
+		//设置不需要分库的数据源   即 默认的
+		shardingRuleConfiguration.setDefaultDatabaseShardingStrategyConfig(null);
+		shardingRuleConfiguration.setDefaultDataSourceName("master_slave");
+		//TODO 主从库  先暂时搁置 后面研究
+//		MasterSlaveRuleConfiguration masterSlaveRuleConfig1 = new MasterSlaveRuleConfiguration();
+//		masterSlaveRuleConfig1.setName("ds0");
+//		masterSlaveRuleConfig1.setMasterDataSourceName("sharding_0");
+//		masterSlaveRuleConfig1.setSlaveDataSourceNames(Arrays.asList("slave_11"));
+//		MasterSlaveRuleConfiguration masterSlaveRuleConfig2 = new MasterSlaveRuleConfiguration();
+//		masterSlaveRuleConfig2.setName("ds1");
+//		masterSlaveRuleConfig2.setMasterDataSourceName("sharding_1");
+//		masterSlaveRuleConfig2.setSlaveDataSourceNames(Arrays.asList("slave_21"));
+//		shardingRuleConfiguration.setMasterSlaveRuleConfigs(Arrays.asList(masterSlaveRuleConfig1,masterSlaveRuleConfig2));
+		
 		try {
 			Properties properties = new Properties();
 			return ShardingDataSourceFactory.createDataSource(dsMap, shardingRuleConfiguration,
@@ -152,6 +156,60 @@ public class DataSourceConfig {
 		return null;
 	}
 	
+	
+	//创建分库的两个数据源
+//	@Bean(name="shardingDS1")
+	public DataSource buildShardingDS1() throws Exception{
+		RelaxedPropertyResolver propertyResolver = new RelaxedPropertyResolver(env, "sharding.datasource.ds1.");
+		Properties properties = setCustomProperties();
+		properties.put(DruidDataSourceFactory.PROP_URL, propertyResolver.getProperty("url"));//数据库url
+		properties.put(DruidDataSourceFactory.PROP_USERNAME, propertyResolver.getProperty("username"));//用户名
+		// properties.put(DruidDataSourceFactory.PROP_PASSWORD,
+		// ConfigTools.decrypt(publicKey,mysqlUserPwd));
+		properties.put(DruidDataSourceFactory.PROP_PASSWORD, propertyResolver.getProperty("password"));//密码
+		properties.put(DruidDataSourceFactory.PROP_DRIVERCLASSNAME, propertyResolver.getProperty("driverClassName"));//Driver  数据库驱动
+
+		return DruidDataSourceFactory.createDataSource(properties);
+	}
+	
+//	@Bean(name="shardingDS2")
+	public DataSource buildShardingDS2() throws Exception{
+		RelaxedPropertyResolver propertyResolver = new RelaxedPropertyResolver(env, "sharding.datasource.ds2.");
+		Properties properties = setCustomProperties();
+		properties.put(DruidDataSourceFactory.PROP_URL, propertyResolver.getProperty("url"));//数据库url
+		properties.put(DruidDataSourceFactory.PROP_USERNAME, propertyResolver.getProperty("username"));//用户名
+		// properties.put(DruidDataSourceFactory.PROP_PASSWORD,
+		// ConfigTools.decrypt(publicKey,mysqlUserPwd));
+		properties.put(DruidDataSourceFactory.PROP_PASSWORD, propertyResolver.getProperty("password"));//密码
+		properties.put(DruidDataSourceFactory.PROP_DRIVERCLASSNAME, propertyResolver.getProperty("driverClassName"));//Driver  数据库驱动
+
+		return DruidDataSourceFactory.createDataSource(properties);
+	}
+	//创建两个从库的dataSource
+	public DataSource buildShardingslaveDS11() throws Exception{
+		RelaxedPropertyResolver propertyResolver = new RelaxedPropertyResolver(env, "slave.datasource.ds1.slave1.");
+		Properties properties = setCustomProperties();
+		properties.put(DruidDataSourceFactory.PROP_URL, propertyResolver.getProperty("url"));//数据库url
+		properties.put(DruidDataSourceFactory.PROP_USERNAME, propertyResolver.getProperty("username"));//用户名
+		// properties.put(DruidDataSourceFactory.PROP_PASSWORD,
+		// ConfigTools.decrypt(publicKey,mysqlUserPwd));
+		properties.put(DruidDataSourceFactory.PROP_PASSWORD, propertyResolver.getProperty("password"));//密码
+		properties.put(DruidDataSourceFactory.PROP_DRIVERCLASSNAME, propertyResolver.getProperty("driverClassName"));//Driver  数据库驱动
+
+		return DruidDataSourceFactory.createDataSource(properties);
+	}
+	public DataSource buildShardingslaveDS21() throws Exception{
+		RelaxedPropertyResolver propertyResolver = new RelaxedPropertyResolver(env, "slave.datasource.ds2.slave1.");
+		Properties properties = setCustomProperties();
+		properties.put(DruidDataSourceFactory.PROP_URL, propertyResolver.getProperty("url"));//数据库url
+		properties.put(DruidDataSourceFactory.PROP_USERNAME, propertyResolver.getProperty("username"));//用户名
+		// properties.put(DruidDataSourceFactory.PROP_PASSWORD,
+		// ConfigTools.decrypt(publicKey,mysqlUserPwd));
+		properties.put(DruidDataSourceFactory.PROP_PASSWORD, propertyResolver.getProperty("password"));//密码
+		properties.put(DruidDataSourceFactory.PROP_DRIVERCLASSNAME, propertyResolver.getProperty("driverClassName"));//Driver  数据库驱动
+		
+		return DruidDataSourceFactory.createDataSource(properties);
+	}
 	
 	private Properties setCustomProperties(){
 		Properties properties = new Properties();
@@ -180,9 +238,10 @@ public class DataSourceConfig {
 //		targetDataSources.putAll(buildSlaveDataSources());
 //		return targetDataSources;
 //	}
-	
+//	
 //	@Primary
 //	@Bean(name="dynamicDataSource")
+//	@Qualifier("dyanmicDataSource")
 //	public DataSource dynamicDataSource() throws Exception{
 //		DynamicDataSource dynamicDataSource = new DynamicDataSource();
 //		HashMap<String, DataSource> targetDataSources = buildTargetDataSources();
@@ -197,20 +256,20 @@ public class DataSourceConfig {
 //		dynamicDataSource.setTargetDataSources(dataSourceMap);
 //		return dynamicDataSource;
 //	}
-	
-	
-//	private DataSource buildMasterDataSource() throws Exception{
-//		Properties properties = setCustomProperties();
-//		properties.put(DruidDataSourceFactory.PROP_URL, url);//数据库url
-//		properties.put(DruidDataSourceFactory.PROP_USERNAME, username);//用户名
-//		// properties.put(DruidDataSourceFactory.PROP_PASSWORD,
-//		// ConfigTools.decrypt(publicKey,mysqlUserPwd));
-//		properties.put(DruidDataSourceFactory.PROP_PASSWORD, password);//密码
-//		properties.put(DruidDataSourceFactory.PROP_DRIVERCLASSNAME, driverClassName);//Driver  数据库驱动
-//
-//		return DruidDataSourceFactory.createDataSource(properties);
-//	}
-	
+//	
+//	
+	private DataSource buildMasterDataSource() throws Exception{
+		Properties properties = setCustomProperties();
+		properties.put(DruidDataSourceFactory.PROP_URL, url);//数据库url
+		properties.put(DruidDataSourceFactory.PROP_USERNAME, username);//用户名
+		// properties.put(DruidDataSourceFactory.PROP_PASSWORD,
+		// ConfigTools.decrypt(publicKey,mysqlUserPwd));
+		properties.put(DruidDataSourceFactory.PROP_PASSWORD, password);//密码
+		properties.put(DruidDataSourceFactory.PROP_DRIVERCLASSNAME, driverClassName);//Driver  数据库驱动
+
+		return DruidDataSourceFactory.createDataSource(properties);
+	}
+//	
 //	private HashMap<String, DataSource> buildSlaveDataSources() throws Exception{
 //		 // 读取配置文件获取更多数据源，也可以通过defaultDataSource读取数据库获取更多数据源
 //        RelaxedPropertyResolver propertyResolver = new RelaxedPropertyResolver(env, "slave.datasource.");
@@ -225,8 +284,8 @@ public class DataSourceConfig {
 //        }
 //        return slaveDataSources;
 //	}
-
-	
+//
+//	
 //	public DataSource buildDataSource(Map<String, Object> dsMap) throws Exception {
 //		Properties properties = setCustomProperties();
 //		properties.put(DruidDataSourceFactory.PROP_URL, dsMap.get("url").toString());//数据库url

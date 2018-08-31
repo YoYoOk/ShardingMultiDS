@@ -6,34 +6,39 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
 
+import com.yj.multids.dao.InfoRepository;
 import com.yj.multids.dao.UserRepository;
+import com.yj.multids.entity.Info;
 import com.yj.multids.entity.User;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest
-public class UserTest {
+public class InfoTest {
 	
 	@Autowired
-	private UserRepository repository;
+	private InfoRepository repository;
 	
 //	@Test
 	public void saveTest(){
-		User user = new User("save1");
-		user.setId(1l);
-		repository.save(user);
+		Info info = new Info();
+		info.setAge(25);
+		info.setGender("0");
+		info.setWeight(46.1);
+		repository.save(info);
 	}
 	
 //	@Test
 	public void updateTest(){
-		User user = new User();
-		user.setId(242220579398029312l);
-		user.setName("update");
-		repository.save(user);
+		Info info = new Info();
+		info.setId(1l);
+		info.setAge(12);
+		info.setGender("0");
+		repository.save(info);
 	}
 	
 //	@Test
 	public void deleteTest(){
-		repository.delete(242220579398029312l);
+		repository.delete(3l);
 	}
 	
 	@Test
